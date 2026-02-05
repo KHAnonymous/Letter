@@ -1,0 +1,242 @@
+/* ==========================================================
+   my/my-letter.css
+   用途：第二幕（视频背景 + 打字信笺）
+   特点：所有样式都限定在 #myStage 内，避免影响 eLuvLetter
+   ========================================================== */
+
+/* 重置只作用于第二幕，避免影响 eLuvLetter 全局 */
+#myStage * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 第二幕：全屏覆盖层（初始隐藏，JS 加 .show 才显示） */
+#myStage{
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: transparent;
+}
+#myStage.show{
+  display: block;
+}
+
+/* ⚠️ 下面这一段是你原来的 card/heart（开篇入口）样式。
+   第二幕不再需要开篇卡片，但你也可以保留以便以后用。
+   我这里把它们也限制在 #myStage 内，避免影响 eLuvLetter。
+   如果你确定永远不用它，可整段删除。 */
+#myStage body{
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #d9afd9;
+  background-image: linear-gradient(0deg, #d9afd9 0%, #97d9e1 100%);
+}
+
+#myStage .card {
+  width: 700px;
+  height: 300px;
+  background-color: #f5efe6;
+  color: #334756;
+  box-shadow: 0px 0px 22px 5px rgb(237, 237, 237);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  font-size: 2.5em;
+  font-family: '楷体';
+  position: relative;
+  transform-style: preserve-3d;
+  transform: perspective(900px) rotateX(23deg);
+}
+#myStage .card::before,
+#myStage .card::after {
+  content: '';
+  width: 50%;
+  height: 100%;
+  color: #b7c4cf;
+  font-size: 40px;
+  position: absolute;
+  font-family: '华文行楷';
+}
+#myStage .card::before {
+  content: '写给你的';
+  left: 0;
+  top: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  transition: 2s;
+  transform-origin: left;
+}
+#myStage .card::after {
+  content: '一封书信';
+  right: 0;
+  top: 0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  transform-origin: right;
+  transition: 2s;
+}
+#myStage .card:hover::before { transform: rotateY(-180deg); }
+#myStage .card:hover::after  { transform: rotateY(180deg); }
+#myStage .content { opacity: 0; transition: 2s; }
+#myStage .card:hover .content { opacity: 1; }
+
+@keyframes change {
+  30% { transform: rotate(45deg) scale(1.1) translateX(-70%); }
+  40% { transform: rotate(45deg) scale(1.3) translateX(-70%); }
+  45% { transform: rotate(45deg) scale(0.9) translateX(-70%); }
+  50% { transform: rotate(45deg) scale(0.5) translateX(-70%); }
+  70% { transform: rotate(45deg) scale(1) translateX(-70%); }
+  80% { transform: rotate(45deg) scale(1.5) translateX(-70%); }
+  90% { transform: rotate(45deg) scale(0.7) translateX(-70%); }
+  95% { transform: rotate(45deg) scale(1.5) translateX(-70%); }
+  100%{ transform: rotate(45deg) scale(1.1) translateX(-70%); }
+}
+#myStage .heart {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 50px;
+  height: 50px;
+  background-color: pink;
+  transform: rotate(45deg) translateX(-70%);
+  animation: change 2.7s infinite;
+  cursor: pointer;
+}
+#myStage .heart::before,
+#myStage .heart::after{
+  content: '';
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: pink;
+  position: absolute;
+}
+#myStage .heart::before { transform: translateX(-25px); }
+#myStage .heart::after  { transform: translateY(-25px); }
+
+#myStage .text {
+  color: #7D6E83;
+  margin-top: 45px;
+  font-family: '华文行楷';
+}
+#myStage .textTwo {
+  color: #7D6E83;
+  font-weight: bold;
+  font-size: 25px;
+  margin-top: 30px;
+}
+
+/* ==========================================================
+   ✅ 第二幕核心：视频层 + 文字层（原 #box -> #myBox）
+   ========================================================== */
+
+/* 原 #box 改为 #myBox（你合并版 HTML 用的是 #myBox） */
+#myStage #myBox {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  width: 100vw;
+  height: 100vh;
+
+  overflow: hidden;
+
+  opacity: 0;
+  transition: opacity 7s;
+
+  pointer-events: none;
+
+  z-index: 0;
+}
+
+/* JS 可以在切幕时加 class，让第二幕能滚动/交互 */
+#myStage #myBox.active{
+  pointer-events: auto;
+}
+
+#myStage #bgVideo {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+  z-index: 0;
+
+  opacity: 0;
+  transition: opacity 7s;
+}
+
+/* 原 #letter 改为 #letterText，避免与 eLuvLetter 的 #letter 冲突 */
+#myStage #letterText {
+  position: absolute;
+
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+
+  width: 72vw;
+  height: 55vh;
+
+  color: rgba(235, 245, 250, 0.92);
+  font-size: 22px;
+  line-height: 2.0;
+  font-family: "华文楷体", "楷体", serif;
+
+  text-align: left;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  box-sizing: border-box;
+  padding: 18px 36px 32px 36px;
+}
+#myStage #letterText::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* to / from 必须写在 #letterText 内部（JS 输出的 div class=to/from） */
+#myStage #letterText .to {
+  display: block;
+  text-align: left;
+  margin: 0 0 1.2em 0;
+  font-size: 22px;
+  font-family: '华文行楷';
+  text-indent: 0;
+}
+
+#myStage #letterText .from {
+  display: block;
+  text-align: right;
+  margin-top: 2em;
+  font-size: 22px;
+  font-family: '华文行楷';
+  text-indent: 0;
+}
+
+/* ✅ 段落首行缩进 */
+#myStage #letterText .para {
+  margin: 0 0 1.2em 0;
+  text-indent: 2em;
+}
