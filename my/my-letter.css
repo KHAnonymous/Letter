@@ -146,7 +146,7 @@
   top: 0;
 
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
 
   overflow: hidden;
 
@@ -178,25 +178,27 @@
   transition: opacity 7s;
 }
 
-/* 原 #letter 改为 #letterText，避免与 eLuvLetter 的 #letter 冲突 */
 #myStage #letterText {
   position: absolute;
-
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
   z-index: 1;
 
   left: 50%;
-  top: 45%;
+  top: 50%;
   transform: translate(-50%, -50%);
 
-  width: 72vw;
-  height: 55vh;
+  /* ✅ 核心：不同设备自动收缩 */
+  width: min(92vw, 820px);
+  max-height: 75dvh;
 
   color: rgba(235, 245, 250, 0.92);
-  font-size: 22px;
-  line-height: 2.0;
-  font-family: "华文楷体", "楷体", serif;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
 
+
+  /* ✅ 字号自适应：手机小、电脑大 */
+  font-size: clamp(15px, 4vw, 22px);
+  line-height: 1.9;
+
+  font-family: "华文楷体", "楷体", serif;
   text-align: left;
 
   white-space: pre-wrap;
@@ -209,47 +211,40 @@
   -ms-overflow-style: none;
 
   box-sizing: border-box;
-  padding: 18px 36px 32px 36px;
+
+  /* ✅ padding 也随屏幕变化 */
+  padding: clamp(12px, 4vw, 28px);
 }
+
 #myStage #letterText::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
 
-/* to / from 必须写在 #letterText 内部（JS 输出的 div class=to/from） */
-
-#myStage #letterText .to{
-  display: block;
-  text-align: left;
-
+#myStage #letterText .to {
   font-family: "华文行楷";
-  font-size: 22px;
-
-  line-height: 1.2 !important;    /* ✅ 关键：别用 2.0 的行高 */
-  margin-bottom: 0.7em;     /* ✅ 关键：拉开但不“断层” */
-  padding: 0 !important;
-
-  text-indent: 0 !important;       /* ✅ 标题不缩进 */
-}
-
-#myStage #letterText .from {
-  display: block;
-  text-align: right;
-  margin-top: 2em;
-  font-size: 22px;
-  font-family: '华文行楷';
+  font-size: clamp(16px, 4.5vw, 22px);
+  line-height: 1.3;
+  margin-bottom: 0.9em;
   text-indent: 0;
 }
 
-/* ====== 正文段落：统一首行缩进（包括第一段） ====== */
-#myStage #letterText p.para{
-  display: block;
-
-  margin: 0 0 1.2em 0 !important;  /* 段落间距（下段） */
-  padding: 0 !important;
-
-  text-indent: 2em !important;     /* ✅ 关键：强制首行缩进 */
-  line-height: 2.0;                /* 正文继续用你原来的行高即可 */
+#myStage #letterText p.para {
+  margin: 0 0 1.2em 0;
+  text-indent: 2em;
+  line-height: 1.9;
 }
 
+#myStage #letterText .from {
+  margin-top: 2em;
+  font-family: "华文行楷";
+  font-size: clamp(16px, 4.5vw, 22px);
+  text-align: right;
+}
 
+@media (max-width: 480px) {
+  #myStage #letterText {
+    top: 52%;               /* 手机稍微往下 */
+    max-height: 78dvh;      /* 避开地址栏 */
+  }
+}

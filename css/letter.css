@@ -416,3 +416,77 @@ section.container>form.flip>.front {
 .letter {
 	font-family: cursive;
 }
+
+
+
+
+
+
+
+
+/* ==========================================================
+   ✅ Mobile / Tablet responsive fix for the 1st stage envelope
+   追加到 letter.css 最末尾（不要删原规则）
+   ========================================================== */
+
+/* 防止 600px 宽度撑爆手机屏幕造成“画面变大” */
+html, body{
+  overflow-x: hidden;
+}
+
+/* 让 600x300 这种固定尺寸在小屏按比例缩小 */
+@media (max-width: 768px){
+
+  /* 第一幕的信封整体容器：用 vw 控制宽度，保持 2:1 比例 */
+  section.container{
+    width: min(92vw, 600px);
+    height: calc(min(92vw, 600px) / 2);  /* 600:300 = 2:1 */
+    margin: 18vh auto 0;                 /* 原来 280px 太夸张，手机改成相对高度 */
+    perspective: 1000px;
+  }
+
+  /* open 按钮原来 margin-left:200px 会在小屏跑偏，改成居中 */
+  #open{
+    width: 150px;
+    margin: 4vh auto 0;
+  }
+
+  /* 收件人字体在手机略缩小，避免挤压 */
+  #recipient{
+    font-size: 1.1em;
+    line-height: 1.4;
+  }
+
+  /* stamp 右上角邮票在小屏缩一点，避免溢出 */
+  #stamp{
+    width: 105px;
+    height: 86px;
+    margin-top: -80px;
+    margin-right: -5px;
+    background-size: contain;
+  }
+
+  #stamp img{
+    height: 80%;
+  }
+
+  /* data 区域在小屏避免过高 */
+  #data{
+    height: 45vh;
+  }
+}
+
+/* 进一步适配超小屏（常见手机） */
+@media (max-width: 420px){
+
+  section.container{
+    width: 94vw;
+    height: calc(94vw / 2);
+    margin-top: 14vh;
+  }
+
+  section.container>form.flip>.front{
+    padding: 95px 16px 16px 38%;
+    font-size: 1.1em;
+  }
+}
