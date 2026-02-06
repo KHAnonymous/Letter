@@ -248,3 +248,17 @@
     max-height: 78dvh;      /* 避开地址栏 */
   }
 }
+
+
+/* ==========================================================
+   ✅ Fix: 手机端第二幕视频不显示（opacity 未切回 1 的兜底）
+   追加到 my-letter.css 最末尾
+   ========================================================== */
+
+#myStage.show #myBox{
+  opacity: 1 !important;
+}
+
+#myStage.show #bgVideo{
+  opacity: 1 !important;
+}
