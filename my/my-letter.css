@@ -217,13 +217,19 @@
 }
 
 /* to / from 必须写在 #letterText 内部（JS 输出的 div class=to/from） */
-#myStage #letterText .to {
+
+#myStage #letterText .to{
   display: block;
   text-align: left;
-  margin: 0 0 1.2em 0;
+
+  font-family: "华文行楷";
   font-size: 22px;
-  font-family: '华文行楷';
-  text-indent: 0;
+
+  line-height: 1.2 !important;    /* ✅ 关键：别用 2.0 的行高 */
+  margin-bottom: 0.7em;     /* ✅ 关键：拉开但不“断层” */
+  padding: 0 !important;
+
+  text-indent: 0 !important;       /* ✅ 标题不缩进 */
 }
 
 #myStage #letterText .from {
@@ -235,8 +241,15 @@
   text-indent: 0;
 }
 
-/* ✅ 段落首行缩进 */
-#myStage #letterText .para {
-  margin: 0 0 1.2em 0;
-  text-indent: 2em;
+/* ====== 正文段落：统一首行缩进（包括第一段） ====== */
+#myStage #letterText p.para{
+  display: block;
+
+  margin: 0 0 1.2em 0 !important;  /* 段落间距（下段） */
+  padding: 0 !important;
+
+  text-indent: 2em !important;     /* ✅ 关键：强制首行缩进 */
+  line-height: 2.0;                /* 正文继续用你原来的行高即可 */
 }
+
+
