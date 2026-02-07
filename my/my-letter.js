@@ -41,12 +41,14 @@ function startLetter() {
     x.volume = vol;
   }, 200);
 
+
+    
   // -----------------------------
-  // 2) 打字效果（替换为你的新正文）
+  // 2) 打字效果（性能优化版：移动端批量输出，减少卡顿）
   // -----------------------------
+
   let i = 0;
 
-  // ✅ To / From 名称（你想怎么显示都可以改这里）
   const toName = "莉莉：";
   const fromName = "大师兄";
 
@@ -59,45 +61,73 @@ function startLetter() {
 
 你是“闪闪发光但不耀眼夺目”的人，是看清生活的另一面，仍旧对生活充满热忱的人。是温暖自己更温暖他人的人。于我而言，你像是在不断敲击着我的世界。我曾害怕自己辛苦守护的安宁被打破，试图将自己推离你，但从你敲击的裂缝里，我发现了阳光。你是我难以预料的惊喜，也是我来日方长的温柔。他们说，每个人都有独属于自己的语言。若你愿意，我会认真学习你的“语法”，细心倾听你的心声。正如你所说：“好的感情不是三分钟热度，而是细水长流，对的人，最终会站在你的前途里。”我希望有个如你一般的人，如山间清爽的风，如古城温暖的阳光，是你就好。从清晨到夜晚，从山野到书房，只要最后是你就好。不是清风偏拂柳，是尔存时万物春。`;
 
-  // ✅ To 之后先开一个段落（你原逻辑保留）
+  
+  // ✅ 先写 To + 第一段
   let strp = `<div class="to">致${toName}</div><p class="para">`;
 
-  function print() {
-    if (i >= str.length) return;
+  // ✅ 移动端判定（尽量简单可靠）
+  const isMobile = window.matchMedia("(max-width: 768px)").matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
-    // ✅ 新规则：空行（\n\n）= 新段落
+  // ✅ 移动端：每次吐出更多字符，减少 innerHTML 刷新频率
+  const charsPerTick = isMobile ? 3 : 1;
+  // ✅ 移动端：间隔更大一点，减少 CPU 占用
+  const tickMs = isMobile ? 70 : 90;
+
+  // ✅ 光标闪烁（不用每个字都拼一次 |）
+  let cursorOn = true;
+  let cursorTimer = setInterval(() => {
+    cursorOn = !cursorOn;
+    // 只有在打字过程中才更新光标
+    if (i < str.length) box.innerHTML = strp + (cursorOn ? "|" : "");
+  }, 350);
+
+  function stepOnce() {
+    if (i >= str.length) return false;
+
+    // 空行：新段落
     if (str[i] === '\n' && str[i + 1] === '\n') {
       strp += '</p><p class="para">';
       i += 2;
-      box.innerHTML = strp + "|";
-      return;
+      return true;
     }
 
-    // ✅ 新规则：单个换行（\n）= <br>
+    // 单换行：<br>
     if (str[i] === '\n') {
       strp += '<br>';
       i += 1;
-      box.innerHTML = strp + "|";
-      return;
+      return true;
     }
 
-    // 正常输出字符
+    // 普通字符
     strp += str[i];
-    box.innerHTML = strp + "|";
     i++;
+    return true;
   }
 
   setTimeout(() => {
-    let printid = setInterval(() => {
-      print();
-      if (i === str.length) {
+    const printid = setInterval(() => {
+      // ✅ 批量输出
+      for (let k = 0; k < charsPerTick; k++) {
+        if (!stepOnce()) break;
+      }
+
+      // ✅ 统一刷新（减少次数）
+      box.innerHTML = strp + (cursorOn ? "|" : "");
+
+      if (i >= str.length) {
         clearInterval(printid);
+        clearInterval(cursorTimer);
         strp += `</p><div class="from">${fromName}</div>`;
         box.innerHTML = strp;
       }
-    }, 100);
+    }, tickMs);
   }, 5500);
 
+  
+  
+  
+  
+  
   // -----------------------------
   // 3) 背景淡入 + 视频淡入（⚠️ 注意：首次播放已移到 click 事件里）
   // -----------------------------

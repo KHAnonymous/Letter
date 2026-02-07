@@ -191,7 +191,9 @@
   max-height: 75dvh;
 
   color: rgba(235, 245, 250, 0.92);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+ 
+
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 
 
   /* ✅ 字号自适应：手机小、电脑大 */
@@ -261,4 +263,18 @@
 
 #myStage.show #bgVideo{
   opacity: 1 !important;
+}
+
+
+/* ==============================
+   ✅ Desktop：第二幕文字容器放大
+   ============================== */
+@media (min-width: 1024px){
+  #myStage #letterText{
+    width: min(70vw, 1100px);
+    max-height: 78vh;
+    font-size: clamp(18px, 1.2vw, 26px);
+    line-height: 2.0;
+    padding: clamp(18px, 2.2vw, 44px);
+  }
 }
