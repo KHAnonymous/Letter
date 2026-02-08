@@ -23,10 +23,7 @@
   display: block;
 }
 
-/* ⚠️ 下面这一段是你原来的 card/heart（开篇入口）样式。
-   第二幕不再需要开篇卡片，但你也可以保留以便以后用。
-   我这里把它们也限制在 #myStage 内，避免影响 eLuvLetter。
-   如果你确定永远不用它，可整段删除。 */
+/* ⚠️ 原来的 card/heart 入口样式（保留，不影响） */
 #myStage body{
   width: 100vw;
   height: 100vh;
@@ -139,7 +136,6 @@
    ✅ 第二幕核心：视频层 + 文字层（原 #box -> #myBox）
    ========================================================== */
 
-/* 原 #box 改为 #myBox（你合并版 HTML 用的是 #myBox） */
 #myStage #myBox {
   position: absolute;
   left: 0;
@@ -184,12 +180,15 @@
 
   left: 50%;
   top: 10dvh;
-  transform: translateX(-50%);
+  transform: translate(-50%);
 
   width: min(92vw, 820px);
+
+  /* ✅ 高度控制：避免被地址栏/底部手势条遮挡 */
   max-height: 80dvh;
 
   color: rgba(235, 245, 250, 0.92);
+
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 
   font-size: clamp(15px, 4vw, 22px);
@@ -238,12 +237,21 @@
   text-align: right;
 }
 
-/* ✅ ✅ ✅ 关键：手机端从顶部开始（覆盖你原来的 top:52%） */
-@media (max-width: 768px) {
+/* ✅ ✅ ✅ 关键修复：手机竖屏从顶部开始，而不是 52% 中部开始 */
+@media (max-width: 480px) {
   #myStage #letterText {
-    top: 8dvh;                           /* ✅ 从顶部开始（可微调 6~12dvh） */
-    transform: translateX(-50%);
-    max-height: calc(100dvh - 12dvh);    /* ✅ 避开地址栏/状态栏 */
+    top: calc(env(safe-area-inset-top) + 12px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  }
+}
+
+/* 手机横屏：可稍微收紧字号、让可视区域更大 */
+@media (max-width: 768px) and (orientation: landscape) {
+  #myStage #letterText {
+    top: calc(env(safe-area-inset-top) + 10px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);
+    font-size: clamp(14px, 2.2vw, 18px);
+    line-height: 1.85;
   }
 }
 

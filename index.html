@@ -77,14 +77,18 @@
     </div>
   </div>
 
+
   <!-- 第二幕：视频+读信（初始隐藏） -->
   <div id="myStage" aria-hidden="true">
     <div id="myBox">
       <video id="bgVideo"
-             muted
-             loop
-             playsinline
-             preload="auto"></video>
+            data-src-desktop="skystar.mp4"
+            data-src-mobile="skystar_m.mp4"
+            muted
+            loop
+            playsinline
+            webkit-playsinline
+            preload="auto"></video>
 
       <div id="letterText"></div>
     </div>
