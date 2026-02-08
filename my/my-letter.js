@@ -12,10 +12,17 @@ let box     = document.querySelector('#letterText');
 // ✅ ✅ ✅（最小新增）全局保存 BGM，避免重复创建 & 便于在 click 中播放
 let bgm = null;
 
+// ✅ ✅ ✅（最小新增）避免重复触发第二幕
+let started = false;
+
 // -------------------------------------------------------
 // ✅ 把你原来 heart.click 的全部逻辑封装为 startLetter()
 // -------------------------------------------------------
 function startLetter() {
+  // 防重复
+  if (started) return;
+  started = true;
+
   // 允许背景层接收滚动/鼠标（第二幕）
   bg.classList.add('active'); // 配合 my-letter.css 里的 .active
   bg.style.pointerEvents = "auto";
@@ -38,17 +45,14 @@ function startLetter() {
     }, 200);
   }
 
-
   // -----------------------------
   // 2) 打字效果（性能优化版：移动端批量输出，减少卡顿）
   // -----------------------------
-
   let i = 0;
 
   const toName = "莉莉：";
   const fromName = "大师兄";
 
-  // ✅ 用模板字符串写长文本（保留你原来的自然段换行）
   let str = `我是一个有表达恐惧的人，从没想过自己有一天会以书信的形式，将内心的想法娓娓道来。初访湄洲岛，落日迷人眼。当初我随口一句：“有机会我真想拜访下泉州的各路神仙”。没想到，等来的是你一句，“大师兄，我和你说一件事儿，你别打我，我已经和妈祖打好招呼了，我们即刻起身前往湄洲岛”。听到这话时，我没有计划被打乱的不安，反而满是惊喜与期待。伴随着你的歌单，还有你那“莉式”踩油门的节奏，心在远方，身在路上，我们就这样出发了。环岛骑行、妈祖庙前的许愿、登高远眺、海边的落日……一幕一幕，深深刻在我的脑海里。那一刻，我的心，不止动了一下。
 
 夜爬清源山，满城烟火绽放。机缘巧合下，我有了和你一起跨年的机会，而且还是夜爬清源山，一个我当初多少有点口嗨的想法。庆幸有你，不然我可能还没进山门就已经打退堂鼓了。起初我以为只是普通的登山步道，直到开始略显狼狈时，恰巧你说了一句：“肯定不会再有女生陪你夜爬伸手不见五指的山了。”那一刻，我的内心像是被狠狠撞了一下。我不曾想过自己会夜爬跨年，会在山顶对酒当歌，会登高欣赏满城的烟花，怀揣着下一刻它会在哪儿绽放的期待；也不曾想过，这一件件事情，会有人始终陪在身旁。那一晚，理性与感性不断博弈，我辗转难眠。
@@ -68,49 +72,42 @@ function startLetter() {
   // ✅ 移动端：间隔更大一点，减少 CPU 占用
   const tickMs = isMobile ? 70 : 90;
 
-  // ✅ ✅ ✅（最小新增）设备不同的“开写延迟”
+  // ✅ 设备不同的“开写延迟”
   const startDelayMs = isMobile ? 1200 : 1800;
 
-  // ✅ 光标闪烁（不用每个字都拼一次 |）
+  // ✅ 光标闪烁
   let cursorOn = true;
   let cursorTimer = setInterval(() => {
     cursorOn = !cursorOn;
-    // 只有在打字过程中才更新光标
     if (i < str.length) box.innerHTML = strp + (cursorOn ? "|" : "");
   }, 350);
 
   function stepOnce() {
     if (i >= str.length) return false;
 
-    // 空行：新段落
     if (str[i] === '\n' && str[i + 1] === '\n') {
       strp += '</p><p class="para">';
       i += 2;
       return true;
     }
 
-    // 单换行：<br>
     if (str[i] === '\n') {
       strp += '<br>';
       i += 1;
       return true;
     }
 
-    // 普通字符
     strp += str[i];
     i++;
     return true;
   }
 
-  // ✅ ✅ ✅（最小改动）把 5500 替换为 startDelayMs
   setTimeout(() => {
     const printid = setInterval(() => {
-      // ✅ 批量输出
       for (let k = 0; k < charsPerTick; k++) {
         if (!stepOnce()) break;
       }
 
-      // ✅ 统一刷新（减少次数）
       box.innerHTML = strp + (cursorOn ? "|" : "");
 
       if (i >= str.length) {
@@ -122,9 +119,8 @@ function startLetter() {
     }, tickMs);
   }, startDelayMs);
 
-
   // -----------------------------
-  // 3) 背景淡入 + 视频淡入（⚠️ 注意：首次播放已移到 click 事件里）
+  // 3) 背景淡入 + 视频淡入
   // -----------------------------
   requestAnimationFrame(() => {
     bg.style.opacity = 1;
@@ -149,7 +145,10 @@ function startLetter() {
     // 2) 先显示第二幕
     if (stage) stage.classList.add('show');
 
-    // ✅ ✅ ✅（最小新增）BGM：在“用户点击链路”内创建 + play，手机端才稳定
+    // ✅ 移动端判定（用于视频分流 + 文字延迟）
+    const isMobile = window.matchMedia("(max-width: 768px)").matches || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+    // ✅ ✅ ✅ BGM：在“用户点击链路”内创建 + play，手机端才稳定
     if (!bgm) {
       bgm = document.createElement("audio");
       bgm.src = "qlx.mp3";
@@ -170,24 +169,71 @@ function startLetter() {
       bgVideo.setAttribute('playsinline', '');
       bgVideo.setAttribute('webkit-playsinline', '');
 
-      // 让它先变可见（就算 CSS 里默认 0，这里也先给到 1）
+      // ✅ ✅ ✅ 设备分流：手机 720p，其它设备高画质
+      const wantSrc = isMobile ? "skystar_m.mp4" : "skystar.mp4";
+      const curSrc = bgVideo.getAttribute("src") || "";
+      if (!curSrc.includes(wantSrc)) {
+        bgVideo.src = wantSrc;
+      }
+
+      // 让它先变可见
       bgVideo.style.opacity = 1;
       bg.style.opacity = 1;
 
-      // 有些机型需要 load 一次
+      // load + play 必须在 click 链路
       try { bgVideo.load(); } catch(e) {}
 
-      // ✅ play 必须在 click 同步链中
-      bgVideo.play().catch(() => {});
+      // ✅ ✅ ✅ 视频可播放后再启动打字（解决“先字后视频”的观感）
+      const fireStartOnce = () => {
+        // 让 eLuvLetter 翻开动画跑一会儿（保持你原来的 1200）
+        setTimeout(() => {
+          startLetter();
+
+          const env = document.getElementById('envelope');
+          const sakuraLayer = document.getElementById('jsi-cherry-container');
+          [env, sakuraLayer].forEach(el => {
+            if (!el) return;
+            el.style.transition = 'opacity .8s';
+            el.style.opacity = '0';
+            setTimeout(() => { el.style.display = 'none'; }, 800);
+          });
+
+        }, 1200);
+      };
+
+      // 兜底：避免重复绑定/重复触发
+      let startedByVideo = false;
+      const onReady = () => {
+        if (startedByVideo) return;
+        startedByVideo = true;
+        bgVideo.removeEventListener('canplay', onReady);
+        bgVideo.removeEventListener('playing', onReady);
+        fireStartOnce();
+      };
+
+      bgVideo.addEventListener('canplay', onReady, { once: true });
+      bgVideo.addEventListener('playing', onReady, { once: true });
+
+      // ✅ play（失败也不阻塞，给一个兜底）
+      bgVideo.play().then(() => {
+        // 如果已经 playing 会触发 onReady
+      }).catch(() => {
+        // ✅ 兜底：视频被拦截或加载慢，也不要一直卡住
+        setTimeout(() => {
+          if (!startedByVideo) {
+            startedByVideo = true;
+            fireStartOnce();
+          }
+        }, 900);
+      });
+
+      return; // ✅ 已经在 onReady 里触发 startLetter，所以这里 return
     }
 
-    // 4) 让 eLuvLetter 自己的翻开动画先跑一会儿（可调）
+    // 如果没有视频元素，保持原逻辑：1200ms 后启动第二幕
     setTimeout(() => {
-
-      // 立刻启动第二幕（打字/音乐/淡入）
       startLetter();
 
-      // 再把第一幕做“渐隐”，而不是瞬间 display:none
       const env = document.getElementById('envelope');
       const sakuraLayer = document.getElementById('jsi-cherry-container');
 
@@ -197,7 +243,6 @@ function startLetter() {
         el.style.opacity = '0';
         setTimeout(() => { el.style.display = 'none'; }, 800);
       });
-
     }, 1200);
 
   }, true);
