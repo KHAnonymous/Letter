@@ -9,6 +9,9 @@ let bg      = document.querySelector('#myBox');
 let bgVideo = document.querySelector('#bgVideo');
 let box     = document.querySelector('#letterText');
 
+// ✅ ✅ ✅（最小新增）全局保存 BGM，避免重复创建 & 便于在 click 中播放
+let bgm = null;
+
 // -------------------------------------------------------
 // ✅ 把你原来 heart.click 的全部逻辑封装为 startLetter()
 // -------------------------------------------------------
@@ -18,31 +21,24 @@ function startLetter() {
   bg.style.pointerEvents = "auto";
 
   // -----------------------------
-  // 1) 音乐：循环 + 淡入（移动端可能需要用户手势才能播放，失败就忽略）
+  // 1) 音乐：只做淡入（✅ play 放到 click 里，手机端才稳定）
   // -----------------------------
-  let x = document.createElement("audio");
-  x.src = "qlx.mp3";
-  x.loop = true;
-  x.volume = 0;
+  if (bgm) {
+    bgm.loop = true;
+    bgm.volume = 0;
 
-  // ✅ 稳定性：append 到 DOM
-  document.body.appendChild(x);
-
-  // ✅ 尝试播放（如果手机拦截，就算了，不影响后续）
-  x.play().catch(() => {});
-
-  let vol = 0;
-  let fadeIn = setInterval(() => {
-    vol += 0.02;
-    if (vol >= 0.6) {
-      vol = 0.6;
-      clearInterval(fadeIn);
-    }
-    x.volume = vol;
-  }, 200);
+    let vol = 0;
+    let fadeIn = setInterval(() => {
+      vol += 0.02;
+      if (vol >= 0.6) {
+        vol = 0.6;
+        clearInterval(fadeIn);
+      }
+      bgm.volume = vol;
+    }, 200);
+  }
 
 
-    
   // -----------------------------
   // 2) 打字效果（性能优化版：移动端批量输出，减少卡顿）
   // -----------------------------
@@ -61,7 +57,6 @@ function startLetter() {
 
 你是“闪闪发光但不耀眼夺目”的人，是看清生活的另一面，仍旧对生活充满热忱的人。是温暖自己更温暖他人的人。于我而言，你像是在不断敲击着我的世界。我曾害怕自己辛苦守护的安宁被打破，试图将自己推离你，但从你敲击的裂缝里，我发现了阳光。你是我难以预料的惊喜，也是我来日方长的温柔。他们说，每个人都有独属于自己的语言。若你愿意，我会认真学习你的“语法”，细心倾听你的心声。正如你所说：“好的感情不是三分钟热度，而是细水长流，对的人，最终会站在你的前途里。”我希望有个如你一般的人，如山间清爽的风，如古城温暖的阳光，是你就好。从清晨到夜晚，从山野到书房，只要最后是你就好。不是清风偏拂柳，是尔存时万物春。`;
 
-  
   // ✅ 先写 To + 第一段
   let strp = `<div class="to">致${toName}</div><p class="para">`;
 
@@ -127,11 +122,7 @@ function startLetter() {
     }, tickMs);
   }, startDelayMs);
 
-  
-  
-  
-  
-  
+
   // -----------------------------
   // 3) 背景淡入 + 视频淡入（⚠️ 注意：首次播放已移到 click 事件里）
   // -----------------------------
@@ -157,6 +148,19 @@ function startLetter() {
 
     // 2) 先显示第二幕
     if (stage) stage.classList.add('show');
+
+    // ✅ ✅ ✅（最小新增）BGM：在“用户点击链路”内创建 + play，手机端才稳定
+    if (!bgm) {
+      bgm = document.createElement("audio");
+      bgm.src = "qlx.mp3";
+      bgm.loop = true;
+      bgm.preload = "auto";
+      bgm.volume = 0;
+      bgm.setAttribute('playsinline', '');
+      bgm.setAttribute('webkit-playsinline', '');
+      document.body.appendChild(bgm);
+    }
+    bgm.play().catch(() => {});
 
     // 3) ✅ 关键：在“用户点击”这一刻，立刻触发视频播放（移动端才不会拦截）
     if (bgVideo) {
