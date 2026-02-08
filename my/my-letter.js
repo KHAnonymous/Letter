@@ -14,6 +14,9 @@ let bgm = null;
 // ✅ 全局：控制“打字额外延迟”（用于等待视频真正开始播放）
 let extraTypingDelayMs = 0;
 
+// ✅ ✅ ✅（最小新增）淡入计时器句柄，避免重复开多个 interval
+let bgmFadeTimer = null;
+
 // ✅ 统一的移动端判定（click 与 startLetter 用同一套）
 function isMobileDevice() {
   return (
@@ -44,6 +47,60 @@ function waitVideoPlaying(video, timeoutMs) {
   });
 }
 
+// ✅ ✅ ✅（最小新增）统一的 BGM 淡入：放到“点击链路”里更符合手机策略
+function fadeInBgm(targetVol = 0.6, step = 0.02, intervalMs = 200) {
+  if (!bgm) return;
+
+  // 避免重复淡入叠加
+  if (bgmFadeTimer) clearInterval(bgmFadeTimer);
+
+  // 确保从当前音量继续，不强行归零（更自然）
+  let vol = Math.max(0, Math.min(bgm.volume || 0, targetVol));
+
+  bgmFadeTimer = setInterval(() => {
+    vol += step;
+    if (vol >= targetVol) {
+      vol = targetVol;
+      clearInterval(bgmFadeTimer);
+      bgmFadeTimer = null;
+    }
+    bgm.volume = vol;
+  }, intervalMs);
+}
+
+// ✅ ✅ ✅（最小新增）手机端“保活”：防止视频开始后把音频挤掉
+function keepBgmAlive(ms = 12000) {
+  if (!bgm) return;
+  const start = Date.now();
+
+  const timer = setInterval(() => {
+    // 超时就停止保活
+    if (Date.now() - start > ms) {
+      clearInterval(timer);
+      return;
+    }
+
+    // 第二幕显示中且 bgm 被暂停 -> 尝试续播
+    const stageShown = stage && stage.classList.contains('show');
+    if (stageShown && bgm.paused) {
+      bgm.play().catch(() => {});
+    }
+  }, 800);
+
+  // 页面回到前台时也尝试续播一次（很多手机会在切到后台/锁屏后暂停）
+  const onVis = () => {
+    if (document.visibilityState === 'visible') {
+      try { bgm.play().catch(() => {}); } catch(e) {}
+    }
+  };
+  document.addEventListener('visibilitychange', onVis, { passive: true });
+
+  // 到点清理监听，避免长期挂着
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', onVis);
+  }, ms + 1000);
+}
+
 // -------------------------------------------------------
 // ✅ 把你原来 heart.click 的全部逻辑封装为 startLetter()
 // -------------------------------------------------------
@@ -53,20 +110,12 @@ function startLetter() {
 
   // -----------------------------
   // 1) 音乐：只做淡入（play 放到 click 里）
+  //    ✅ 这里保留淡入兜底：如果点击时没淡入成功，仍可在这里补上
   // -----------------------------
   if (bgm) {
     bgm.loop = true;
-    bgm.volume = 0;
-
-    let vol = 0;
-    let fadeIn = setInterval(() => {
-      vol += 0.02;
-      if (vol >= 0.6) {
-        vol = 0.6;
-        clearInterval(fadeIn);
-      }
-      bgm.volume = vol;
-    }, 200);
+    // 不强行置 0（避免“突然没声/突然起声”）
+    fadeInBgm(0.6, 0.02, 200);
   }
 
   // -----------------------------
@@ -100,12 +149,13 @@ function startLetter() {
 
   // 光标闪烁
   let cursorOn = true;
-  let cursorTimer = setInterval(() =>	all, 350);
 
+  // ✅✅✅ 修复：你这里写成了 setInterval(() => all, 350) 会“只返回函数不执行”
   function all() {
     cursorOn = !cursorOn;
     if (i < str.length) box.innerHTML = strp + (cursorOn ? "|" : "");
   }
+  let cursorTimer = setInterval(all, 350);
 
   function stepOnce() {
     if (i >= str.length) return false;
@@ -182,6 +232,7 @@ function startLetter() {
 
       // iOS/安卓稳健属性
       bgVideo.muted = true;
+      bgVideo.volume = 0; // ✅✅✅ 更明确：彻底无声，避免抢占音频焦点
       bgVideo.setAttribute('muted', '');
       bgVideo.setAttribute('playsinline', '');
       bgVideo.setAttribute('webkit-playsinline', '');
@@ -215,15 +266,31 @@ function startLetter() {
       });
     }
 
-    // 尝试播放（必须在 click 同步链路里）
+    // ✅✅✅ 关键：先尝试播放（必须在 click 同步链路里）
     bgm.play().catch(() => {});
+
+    // ✅✅✅ 关键：在 click 链路中立刻淡入（否则你会“先打字，过一阵才听到音乐”）
+    fadeInBgm(0.6, 0.02, 200);
 
     // 5) ✅ 立刻触发视频播放（仍在 click 链路）
     if (bgVideo) {
       bgVideo.play().catch(() => {});
     }
 
-    // 6) ✅ 关键：手机端等 video 真正 playing，再把“额外打字延迟”降为 0
+    // ✅✅✅ 关键：视频一旦进入 playing，再“补一次” bgm.play()
+    // 很多手机会在 video 播放切入时暂停其它音频，这里做个自动拉起
+    if (bgVideo && bgm) {
+      bgVideo.addEventListener('playing', () => {
+        try { bgm.play().catch(() => {}); } catch(e) {}
+      }, { once: true });
+
+      // 也监听一次 play（部分机型不会触发 playing 很快）
+      bgVideo.addEventListener('play', () => {
+        try { bgm.play().catch(() => {}); } catch(e) {}
+      }, { once: true });
+    }
+
+    // 6) ✅ 手机端：等 video 真正 playing，再把“额外打字延迟”降为 0
     //    - 默认先给一个额外延迟，避免“只出字没画面”
     //    - 一旦 video playing，就取消额外延迟
     if (isMobile) {
@@ -231,6 +298,9 @@ function startLetter() {
       const ok = await waitVideoPlaying(bgVideo, 2500);
       if (ok) extraTypingDelayMs = 0;
       // 如果 2.5s 仍未 playing，则保留 extraTypingDelayMs，让体验不至于太突兀
+
+      // ✅✅✅ 手机端保活：防止“背景出来后音乐没了”
+      keepBgmAlive(15000);
     } else {
       extraTypingDelayMs = 0;
     }

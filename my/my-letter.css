@@ -279,3 +279,16 @@
     padding: clamp(18px, 2.2vw, 44px);
   }
 }
+
+/* ==========================================================
+   ✅ Mobile：背景淡入太久会显得“先字后景/朦胧很久”
+   只缩短手机端 myBox/bgVideo 的 opacity 过渡时间
+   ========================================================== */
+@media (max-width: 768px){
+  #myStage #myBox{
+    transition: opacity .8s !important;
+  }
+  #myStage #bgVideo{
+    transition: opacity .8s !important;
+  }
+}
