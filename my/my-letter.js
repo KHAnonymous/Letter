@@ -73,6 +73,9 @@ function startLetter() {
   // ✅ 移动端：间隔更大一点，减少 CPU 占用
   const tickMs = isMobile ? 70 : 90;
 
+  // ✅ ✅ ✅（最小新增）设备不同的“开写延迟”
+  const startDelayMs = isMobile ? 1200 : 1800;
+
   // ✅ 光标闪烁（不用每个字都拼一次 |）
   let cursorOn = true;
   let cursorTimer = setInterval(() => {
@@ -104,6 +107,7 @@ function startLetter() {
     return true;
   }
 
+  // ✅ ✅ ✅（最小改动）把 5500 替换为 startDelayMs
   setTimeout(() => {
     const printid = setInterval(() => {
       // ✅ 批量输出
@@ -121,7 +125,7 @@ function startLetter() {
         box.innerHTML = strp;
       }
     }, tickMs);
-  }, 5500);
+  }, startDelayMs);
 
   
   

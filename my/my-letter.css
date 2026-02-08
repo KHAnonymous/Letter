@@ -183,12 +183,12 @@
   z-index: 1;
 
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 10dvh;
+  transform: translate(-50%);
 
   /* ✅ 核心：不同设备自动收缩 */
   width: min(92vw, 820px);
-  max-height: 75dvh;
+  max-height: 80dvh;
 
   color: rgba(235, 245, 250, 0.92);
  
