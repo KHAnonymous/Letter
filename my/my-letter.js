@@ -14,7 +14,7 @@ let bgm = null;
 // ✅ 全局：控制“打字额外延迟”（用于等待视频真正开始播放）
 let extraTypingDelayMs = 0;
 
-// ✅ ✅ ✅（最小新增）淡入计时器句柄，避免重复开多个 interval
+// ✅ ✅ ✅ 淡入计时器句柄，避免重复开多个 interval
 let bgmFadeTimer = null;
 
 // ✅ 统一的移动端判定（click 与 startLetter 用同一套）
@@ -47,14 +47,14 @@ function waitVideoPlaying(video, timeoutMs) {
   });
 }
 
-// ✅ ✅ ✅（最小新增）统一的 BGM 淡入：放到“点击链路”里更符合手机策略
+// ✅ ✅ ✅ 统一的 BGM 淡入：放到“点击链路”里更符合手机策略
 function fadeInBgm(targetVol = 0.6, step = 0.02, intervalMs = 200) {
   if (!bgm) return;
 
   // 避免重复淡入叠加
   if (bgmFadeTimer) clearInterval(bgmFadeTimer);
 
-  // 确保从当前音量继续，不强行归零（更自然）
+  // 从当前音量继续
   let vol = Math.max(0, Math.min(bgm.volume || 0, targetVol));
 
   bgmFadeTimer = setInterval(() => {
@@ -68,26 +68,23 @@ function fadeInBgm(targetVol = 0.6, step = 0.02, intervalMs = 200) {
   }, intervalMs);
 }
 
-// ✅ ✅ ✅（最小新增）手机端“保活”：防止视频开始后把音频挤掉
+// ✅ ✅ ✅（保活）防止视频开始后把音频挤掉
 function keepBgmAlive(ms = 12000) {
   if (!bgm) return;
   const start = Date.now();
 
   const timer = setInterval(() => {
-    // 超时就停止保活
     if (Date.now() - start > ms) {
       clearInterval(timer);
       return;
     }
 
-    // 第二幕显示中且 bgm 被暂停 -> 尝试续播
     const stageShown = stage && stage.classList.contains('show');
     if (stageShown && bgm.paused) {
       bgm.play().catch(() => {});
     }
   }, 800);
 
-  // 页面回到前台时也尝试续播一次（很多手机会在切到后台/锁屏后暂停）
   const onVis = () => {
     if (document.visibilityState === 'visible') {
       try { bgm.play().catch(() => {}); } catch(e) {}
@@ -95,7 +92,6 @@ function keepBgmAlive(ms = 12000) {
   };
   document.addEventListener('visibilitychange', onVis, { passive: true });
 
-  // 到点清理监听，避免长期挂着
   setTimeout(() => {
     document.removeEventListener('visibilitychange', onVis);
   }, ms + 1000);
@@ -105,23 +101,22 @@ function keepBgmAlive(ms = 12000) {
 // ✅ 把你原来 heart.click 的全部逻辑封装为 startLetter()
 // -------------------------------------------------------
 function startLetter() {
+  if (!bg || !bgVideo || !box) return;
+
   bg.classList.add('active');
   bg.style.pointerEvents = "auto";
 
   // -----------------------------
   // 1) 音乐：只做淡入（play 放到 click 里）
-  //    ✅ 这里保留淡入兜底：如果点击时没淡入成功，仍可在这里补上
   // -----------------------------
   if (bgm) {
     bgm.loop = true;
-    // 不强行置 0（避免“突然没声/突然起声”）
     fadeInBgm(0.6, 0.02, 200);
   }
 
   // -----------------------------
   // 2) 打字效果（移动端批量输出）
   // -----------------------------
-
   let i = 0;
 
   const toName = "莉莉：";
@@ -141,21 +136,17 @@ function startLetter() {
   const charsPerTick = isMobile ? 3 : 1;
   const tickMs = isMobile ? 70 : 90;
 
-  // ✅ 原本的基础开写延迟（保留你“犹豫”的感觉）
   const baseStartDelayMs = isMobile ? 1200 : 1800;
-
-  // ✅ 新增：额外延迟，用来等视频进入 playing（手机端更自然）
   const startDelayMs = baseStartDelayMs + (extraTypingDelayMs || 0);
 
   // 光标闪烁
   let cursorOn = true;
 
-  // ✅✅✅ 修复：你这里写成了 setInterval(() => all, 350) 会“只返回函数不执行”
-  function all() {
+  function blinkCursor() {
     cursorOn = !cursorOn;
     if (i < str.length) box.innerHTML = strp + (cursorOn ? "|" : "");
   }
-  let cursorTimer = setInterval(all, 350);
+  let cursorTimer = setInterval(blinkCursor, 350);
 
   function stepOnce() {
     if (i >= str.length) return false;
@@ -208,16 +199,28 @@ function startLetter() {
   const openBtn = document.getElementById('open');
   if (!openBtn) return;
 
-  openBtn.addEventListener('click', async () => {
+  openBtn.addEventListener('click', async (e) => {
+
+    // ✅✅✅ 核心：彻底接管点击，阻断 letter.js 的 $("#open").click + 阻断 href="#content"
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const isMobile = isMobileDevice();
 
     // 1) 停掉 eLuvLetter BGM
     const music = document.getElementById('music');
-    if (music && !music.paused) music.pause();
+    if (music) {
+      try { music.pause(); } catch (err) {}
+      music.muted = true;
+      music.volume = 0;
+    }
 
     // 2) 显示第二幕
-    if (stage) stage.classList.add('show');
+    if (stage) {
+      stage.classList.add('show');
+      stage.classList.remove('ready'); // ✅ 先隐藏文字，等视频 ready 再 show
+    }
 
     // 3) ✅ 设备切换视频源：手机用 skystar_m.mp4，其他用 skystar.mp4
     if (bgVideo) {
@@ -225,23 +228,23 @@ function startLetter() {
       const mobileSrc  = bgVideo.getAttribute('data-src-mobile')  || 'skystar_m.mp4';
       const targetSrc  = isMobile ? mobileSrc : desktopSrc;
 
-      // 若当前 src 不一致，切换并 load
       if (bgVideo.getAttribute('src') !== targetSrc) {
         bgVideo.setAttribute('src', targetSrc);
       }
 
       // iOS/安卓稳健属性
       bgVideo.muted = true;
-      bgVideo.volume = 0; // ✅✅✅ 更明确：彻底无声，避免抢占音频焦点
+      bgVideo.volume = 0;
+      bgVideo.playsInline = true;              // ✅ iOS 更稳：property
       bgVideo.setAttribute('muted', '');
       bgVideo.setAttribute('playsinline', '');
       bgVideo.setAttribute('webkit-playsinline', '');
       bgVideo.setAttribute('preload', 'auto');
       bgVideo.loop = true;
 
-      // 让它先可见
+      // 让它先可见（避免首帧出来但被 opacity 藏掉）
       bgVideo.style.opacity = 1;
-      bg.style.opacity = 1;
+      if (bg) bg.style.opacity = 1;
 
       try { bgVideo.load(); } catch(e) {}
     }
@@ -266,40 +269,34 @@ function startLetter() {
       });
     }
 
-    // ✅✅✅ 关键：先尝试播放（必须在 click 同步链路里）
+    // ✅✅✅ 先尝试播放（必须在 click 链路里）
     bgm.play().catch(() => {});
 
-    // ✅✅✅ 关键：在 click 链路中立刻淡入（否则你会“先打字，过一阵才听到音乐”）
+    // ✅ 立刻淡入（否则会“等很久才听到”）
     fadeInBgm(0.6, 0.02, 200);
 
-    // 5) ✅ 立刻触发视频播放（仍在 click 链路）
+    // 5) ✅ 触发视频播放（仍在 click 链路）
     if (bgVideo) {
       bgVideo.play().catch(() => {});
     }
 
-    // ✅✅✅ 关键：视频一旦进入 playing，再“补一次” bgm.play()
-    // 很多手机会在 video 播放切入时暂停其它音频，这里做个自动拉起
-    if (bgVideo && bgm) {
-      bgVideo.addEventListener('playing', () => {
-        try { bgm.play().catch(() => {}); } catch(e) {}
-      }, { once: true });
-
-      // 也监听一次 play（部分机型不会触发 playing 很快）
-      bgVideo.addEventListener('play', () => {
-        try { bgm.play().catch(() => {}); } catch(e) {}
-      }, { once: true });
+    // ✅✅✅ 视频真正 ready 后：显示文字层（解决“白雾+先字后景”）
+    if (bgVideo && stage) {
+      const markReady = () => {
+        stage.classList.add('ready');
+        // 再补一次 bgm.play（很多手机 video 起来会挤掉音频）
+        try { bgm && bgm.play().catch(() => {}); } catch(e) {}
+      };
+      bgVideo.addEventListener('playing', markReady, { once: true });
+      bgVideo.addEventListener('canplay', markReady, { once: true });
     }
 
     // 6) ✅ 手机端：等 video 真正 playing，再把“额外打字延迟”降为 0
-    //    - 默认先给一个额外延迟，避免“只出字没画面”
-    //    - 一旦 video playing，就取消额外延迟
     if (isMobile) {
-      extraTypingDelayMs = 1400; // 先给一个“等待首帧”的缓冲（可微调 900~1800）
+      extraTypingDelayMs = 1400; // 给一个“等待首帧”的缓冲
       const ok = await waitVideoPlaying(bgVideo, 2500);
       if (ok) extraTypingDelayMs = 0;
-      // 如果 2.5s 仍未 playing，则保留 extraTypingDelayMs，让体验不至于太突兀
 
-      // ✅✅✅ 手机端保活：防止“背景出来后音乐没了”
       keepBgmAlive(15000);
     } else {
       extraTypingDelayMs = 0;
