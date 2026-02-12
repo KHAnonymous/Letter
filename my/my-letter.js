@@ -36,6 +36,43 @@ function fadeInBgm(targetVol = 0.6, step = 0.02, intervalMs = 160) {
   }, intervalMs);
 }
 
+/* =========================================================
+   ✅✅✅ 关键新增：音频“解锁/强制起声”
+   - iOS/部分安卓会拦截 autoplay（即便你在 click 里 play 也可能被拒）
+   - 如果第一次 play 被拒：在第二幕内监听一次触摸/点击来解锁
+   ========================================================= */
+function ensureBgmPlaysNow() {
+  if (!bgm) return;
+
+  // 给一个非常小的起始音量，避免“突然大声”
+  if (bgm.volume === 0) bgm.volume = 0.08;
+  bgm.muted = false;
+
+  const p = bgm.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(() => {
+      // 被拦截：等用户在第二幕点一下解锁（只要一次）
+      const unlockOnce = () => {
+        try {
+          bgm.play().catch(() => {});
+          // 解锁后让淡入更快一点，避免“很晚才听到”
+          fadeInBgm(0.6, 0.04, 120);
+        } catch(e) {}
+
+        if (stage) {
+          stage.removeEventListener('pointerdown', unlockOnce);
+          stage.removeEventListener('touchstart', unlockOnce);
+        }
+      };
+
+      if (stage) {
+        stage.addEventListener('pointerdown', unlockOnce, { once: true, passive: true });
+        stage.addEventListener('touchstart', unlockOnce, { once: true, passive: true });
+      }
+    });
+  }
+}
+
 // ✅ 手机端保活：防止 video 抢占后 bgm 被暂停
 function keepBgmAlive(ms = 15000) {
   if (!bgm) return;
@@ -262,14 +299,19 @@ function startLetter() {
       });
     }
 
-    bgm.play().catch(() => {});
-    fadeInBgm(0.6, 0.02, 160);
+    /* ✅✅✅ 关键修改：不要只 play 一次就吞错
+       - 先“强制起声/解锁”
+       - 立刻更快淡入，避免“到打字快结束才响” */
+    ensureBgmPlaysNow();
+    fadeInBgm(0.6, 0.04, 120);
 
     if (bgVideo) {
       await waitCanPlay(bgVideo, 6500);
       bgVideo.play().catch(() => {});
-      bgVideo.addEventListener('play', () => bgm && bgm.play().catch(() => {}), { once: true });
-      bgVideo.addEventListener('playing', () => bgm && bgm.play().catch(() => {}), { once: true });
+
+      // ✅✅✅ 关键修改：视频开始播放时，再拉起一次 bgm（很多机型会挤掉音频）
+      bgVideo.addEventListener('play',    () => ensureBgmPlaysNow(), { once: true });
+      bgVideo.addEventListener('playing', () => ensureBgmPlaysNow(), { once: true });
 
       await waitFirstFrame(bgVideo, 6500);
 
