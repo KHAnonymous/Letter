@@ -11,12 +11,23 @@ let box     = document.querySelector('#letterText');
 let bgm = null;
 let bgmFadeTimer = null;
 
-// ✅ 统一移动端判定
+/* =========================================================
+   ✅✅✅ 关键修改 1：移动端判定（手机才算 mobile；iPad 走 desktop）
+   - 你现在的 /iPad/ 会把 iPad 当 mobile，导致 iPad 播 mobile 源
+   ========================================================= */
 function isMobileDevice() {
-  return (
-    window.matchMedia("(max-width: 768px)").matches ||
-    /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-  );
+  const ua = navigator.userAgent || "";
+
+  // iPadOS 13+ 可能伪装成 Mac，但有触控点
+  const isiPad =
+    /iPad/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  // 手机：iPhone/Android/明确的 Mobi
+  const isPhone = /iPhone|Android|Mobi/i.test(ua);
+
+  // ✅ 仅手机 true；iPad false（走 desktop）
+  return isPhone && !isiPad;
 }
 
 // ✅ BGM 淡入
@@ -38,8 +49,6 @@ function fadeInBgm(targetVol = 0.6, step = 0.02, intervalMs = 160) {
 
 /* =========================================================
    ✅✅✅ 关键新增：音频“解锁/强制起声”
-   - iOS/部分安卓会拦截 autoplay（即便你在 click 里 play 也可能被拒）
-   - 如果第一次 play 被拒：在第二幕内监听一次触摸/点击来解锁
    ========================================================= */
 function ensureBgmPlaysNow() {
   if (!bgm) return;
@@ -158,6 +167,51 @@ function waitFirstFrame(video, timeoutMs = 6000) {
   });
 }
 
+/* =========================================================
+   ✅✅✅ 关键新增 2：等待缓冲到至少 N 秒（减少卡顿/停帧）
+   - 桌面/iPad 的 skystar.mp4 (4K) 更需要缓冲
+   ========================================================= */
+function waitBufferedSeconds(video, needSec = 2.5, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    if (!video) return resolve(false);
+    const start = performance.now();
+
+    const check = () => {
+      try {
+        if (video.readyState >= 3 && video.buffered && video.buffered.length) {
+          const end = video.buffered.end(video.buffered.length - 1);
+          if (end - video.currentTime >= needSec) return resolve(true);
+        }
+      } catch (e) {}
+
+      if (performance.now() - start > timeoutMs) return resolve(false);
+      requestAnimationFrame(check);
+    };
+
+    check();
+  });
+}
+
+/* =========================================================
+   ✅✅✅ 关键新增 3：进入第二幕后关闭第一幕渲染（释放 GPU/CPU）
+   - 这一步对“昨天好今天卡”这种随机性非常有效
+   ========================================================= */
+function shutdownFirstStage() {
+  try {
+    const c = document.getElementById('sakura');
+    if (c) {
+      c.width = 1;
+      c.height = 1;
+      c.style.display = 'none';
+    }
+
+    const sakuraLayer = document.getElementById('jsi-cherry-container');
+    if (sakuraLayer) {
+      sakuraLayer.style.pointerEvents = 'none';
+    }
+  } catch (e) {}
+}
+
 // -------------------------------------------------------
 // ✅ 第二幕打字逻辑
 // -------------------------------------------------------
@@ -245,6 +299,10 @@ function startLetter() {
   if (!openBtn) return;
 
   openBtn.addEventListener('click', async () => {
+
+    // ✅✅✅ 关键：切幕第一时间释放第一幕渲染资源
+    shutdownFirstStage();
+
     const isMobile = isMobileDevice();
 
     const music = document.getElementById('music');
@@ -270,6 +328,7 @@ function startLetter() {
         bgVideo.setAttribute('src', targetSrc);
       }
 
+      // iOS/安卓属性
       bgVideo.muted = true;
       bgVideo.volume = 0;
       bgVideo.setAttribute('muted', '');
@@ -278,7 +337,17 @@ function startLetter() {
       bgVideo.setAttribute('preload', 'auto');
       bgVideo.loop = true;
 
+      // 强制 load
       try { bgVideo.load(); } catch(e) {}
+
+      // ✅✅✅ 卡顿自救：网络抖动时尽量续播
+      bgVideo.addEventListener('stalled', () => {
+        try { bgVideo.play().catch(() => {}); } catch(e) {}
+      }, { passive: true });
+
+      bgVideo.addEventListener('waiting', () => {
+        try { bgVideo.play().catch(() => {}); } catch(e) {}
+      }, { passive: true });
     }
 
     if (!bgm) {
@@ -299,30 +368,37 @@ function startLetter() {
       });
     }
 
-    /* ✅✅✅ 关键修改：不要只 play 一次就吞错
-       - 先“强制起声/解锁”
-       - 立刻更快淡入，避免“到打字快结束才响” */
+    // ✅✅✅ BGM：先解锁，再快速淡入
     ensureBgmPlaysNow();
     fadeInBgm(0.6, 0.04, 120);
 
     if (bgVideo) {
-      await waitCanPlay(bgVideo, 6500);
+      // ✅✅✅ 关键：延长等待时间（尤其桌面/iPad 的 4K）
+      await waitCanPlay(bgVideo, 12000);
+
+      // ✅✅✅ 关键：播放前先缓冲
+      await waitBufferedSeconds(bgVideo, isMobile ? 1.5 : 3.0, 20000);
+
+      // ✅✅✅ 再播放
       bgVideo.play().catch(() => {});
 
-      // ✅✅✅ 关键修改：视频开始播放时，再拉起一次 bgm（很多机型会挤掉音频）
+      // 视频开始播放时，再拉起一次 bgm（很多机型会挤掉音频）
       bgVideo.addEventListener('play',    () => ensureBgmPlaysNow(), { once: true });
       bgVideo.addEventListener('playing', () => ensureBgmPlaysNow(), { once: true });
 
-      await waitFirstFrame(bgVideo, 6500);
+      // 等首帧
+      await waitFirstFrame(bgVideo, 12000);
 
-      // ✅✅✅ 关键修复：首帧到位后，标记 ready，文字层才会显示
+      // 首帧到位后，标记 ready，文字层才会显示
       if (stage) stage.classList.add('ready');
     } else {
       if (stage) stage.classList.add('ready');
     }
 
+    // 手机端保活
     if (isMobile) keepBgmAlive(16000);
 
+    // 渐隐第一幕 DOM（保留你原逻辑）
     const env = document.getElementById('envelope');
     const sakuraLayer = document.getElementById('jsi-cherry-container');
 
@@ -333,6 +409,8 @@ function startLetter() {
       setTimeout(() => { el.style.display = 'none'; }, 650);
     });
 
+    // 开始打字
     startLetter();
+
   }, true);
 })();
